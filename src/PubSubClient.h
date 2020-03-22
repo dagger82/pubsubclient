@@ -7,7 +7,7 @@
 #ifndef PubSubClient_h
 #define PubSubClient_h
 
-#ifdef ESP8266
+#if defined(ESP8266) || defined(ESP32)
 #include <functional>
 #include <pgmspace.h>
 #endif
@@ -31,25 +31,34 @@ private:
    uint16_t server_port;
    callback_t _callback;
 
-   Client *_client;
+   Client &_client;
+   MQTT::PacketParser _parser;
    uint16_t nextMsgId, keepalive;
    uint8_t _max_retries;
    unsigned long lastOutActivity;
    unsigned long lastInActivity;
    bool pingOutstanding;
+   bool isSubAckFound;
 
    //! Receive a message from the client
    /*!
-     \return Pointer to message object, NULL if no message has been received
+     \return Pointer to message object, nullptr if no message has been received
     */
    MQTT::Message* _recv_message(void);
+
+   //! Send a message with no response
+   /*!
+     \param msg The message to send
+     \return Did the message send successfully?
+    */
+   bool _send_message(MQTT::Message& msg);
 
    //! Send a message and wait for its response message (if it has one)
    /*!
      \param msg The message to send
-     \param need_reply Do we wait for the reply message?
+     \return The response message
     */
-   bool _send_message(MQTT::Message& msg, bool need_reply = false);
+   MQTT::Message* _send_message_with_response(MQTT::Message& msg);
 
    //! Process incoming messages
    /*!
@@ -65,9 +74,9 @@ private:
      Other packets are handed over to _process_message()
      \param wait_type	Message type to match on
      \param wait_pid	Message packet id to match on
-     \return True if we received the packet we wanted
+     \return The packet we wanted, or nullptr if it didn't arrive
     */
-   bool _wait_for(MQTT::message_type wait_type, uint16_t wait_pid = 0);
+   MQTT::Message*_wait_for(MQTT::message_type wait_type, uint16_t wait_pid = 0);
 
    //! Return the next packet id
    uint16_t _next_packet_id(void) {
@@ -98,7 +107,7 @@ public:
    //! Set the callback function
    PubSubClient& set_callback(callback_t cb) { _callback = cb; return *this; }
    //! Unset the callback function
-   PubSubClient& unset_callback(void) { _callback = NULL; return * this; }
+   PubSubClient& unset_callback(void) { _callback = nullptr; return * this; }
 
    //! Set the maximum number of retries when waiting for response packets
    PubSubClient& set_max_retries(uint8_t mr) { _max_retries = mr; return *this; }
